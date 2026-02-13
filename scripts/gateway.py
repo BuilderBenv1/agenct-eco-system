@@ -162,13 +162,17 @@ async def gateway_health():
     from sqlalchemy import text
 
     db_ok = False
+    db_error = None
     if async_session:
         try:
             async with async_session() as db:
                 await db.execute(text("SELECT 1"))
                 db_ok = True
-        except Exception:
-            pass
+        except Exception as e:
+            db_error = str(e)[:200]
+            logger.error("health_db_check_failed", error=db_error)
+    else:
+        db_error = "async_session is None (DATABASE_URL not set?)"
 
     return {
         "status": "ok" if db_ok else "degraded",
@@ -176,6 +180,7 @@ async def gateway_health():
         "version": "1.0.0",
         "agents": 7,
         "database": "connected" if db_ok else "disconnected",
+        "db_error": db_error,
         "endpoints": [
             "/api/v1/tipster/health",
             "/api/v1/whale/health",
