@@ -45,9 +45,40 @@ from agents.yield_oracle.services.scraper import scrape_and_save
 from agents.yield_oracle.services.scorer import score_all_opportunities
 
 
-# Convergence detection
-from shared.convergence import detect_convergence
+# Convergence detection + API
+from shared.convergence import detect_convergence, get_recent_convergences, get_convergence_stats
 from shared.config import settings
+from fastapi import APIRouter
+
+convergence_router = APIRouter(prefix="/api/v1/convergence", tags=["convergence"])
+
+
+@convergence_router.get("/health")
+async def convergence_health():
+    stats = await get_convergence_stats()
+    return {"status": "ok", "agent": "convergence", "version": "1.0.0", **stats}
+
+
+@convergence_router.get("/signals")
+async def convergence_signals(limit: int = 20):
+    return await get_recent_convergences(limit=limit)
+
+
+@convergence_router.get("/stats")
+async def convergence_stats():
+    return await get_convergence_stats()
+
+
+@convergence_router.post("/detect")
+async def convergence_trigger():
+    results = await detect_convergence()
+    return {
+        "detected": len(results),
+        "signals": [
+            {"token": r.token_symbol, "agents": r.agents_involved, "score": r.convergence_score}
+            for r in results
+        ],
+    }
 
 
 async def _safe_run(name, fn):
@@ -153,6 +184,7 @@ app.include_router(narrative_router)
 app.include_router(auditor_router)
 app.include_router(liquidation_router)
 app.include_router(yield_router)
+app.include_router(convergence_router)
 
 
 @app.get("/health")
@@ -188,6 +220,7 @@ async def gateway_health():
             "/api/v1/auditor/health",
             "/api/v1/liquidation/health",
             "/api/v1/yield/health",
+            "/api/v1/convergence/health",
         ],
     }
 
