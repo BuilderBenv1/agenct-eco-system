@@ -1,0 +1,22 @@
+[
+  {"address": "0x9f8c163cBA728e99993ABe7495F06c0A3c8Ac8b9", "label": "Binance Hot Wallet", "category": "exchange"},
+  {"address": "0xCBCdF9626bC03E24f779434178A73a0B4bad62eD", "label": "Aave: AVAX Gateway", "category": "protocol"},
+  {"address": "0xd6216fC19DB775Df9774a6E33526131dA7D19a2c", "label": "GMX Vault", "category": "protocol"},
+  {"address": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7", "label": "WAVAX Contract", "category": "protocol"},
+  {"address": "0x60aE616a2155Ee3d9A68541Ba4544862310933d4", "label": "Trader Joe Router", "category": "protocol"},
+  {"address": "0x4750c43867EF5F89869132ecCF19B9b6C4286E1a", "label": "Platypus Finance", "category": "protocol"},
+  {"address": "0x6e84a6216eA6dACC71eE8E6b0a5B7322EEbC0fDd", "label": "JOE Token", "category": "token"},
+  {"address": "0x2b2C81e08f1Af8835a78Bb2A90AE924ACE0eA4bE", "label": "Avalaunch Staking", "category": "protocol"},
+  {"address": "0x0CED6166873038Ac0cc688e7E6d19E2cBE251Bf0", "label": "Benqi Finance", "category": "protocol"},
+  {"address": "0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664", "label": "USDC.e Bridge", "category": "bridge"},
+  {"address": "0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB", "label": "WETH.e Bridge", "category": "bridge"},
+  {"address": "0x5947BB275c521040051D82396192181b413227A3", "label": "LINK.e Bridge", "category": "bridge"},
+  {"address": "0x0000000000000000000000000000000000000000", "label": "Null Address (Burns)", "category": "system"},
+  {"address": "0xdef171fe48cf0115b1d80b88dc8eab59176fee57", "label": "Paraswap V5", "category": "dex"},
+  {"address": "0x1111111254fb6c44bAC0beD2854e76F90643097d", "label": "1inch V4 Router", "category": "dex"},
+  {"address": "0x3B4d8CAbB5B191bDB77218926EAc7E85e14c00F3", "label": "Large Whale #1", "category": "dex_trader"},
+  {"address": "0xF1B5bD5d9D100fE8D08C54A7D76809EbE8FBF9d0", "label": "Large Whale #2", "category": "dex_trader"},
+  {"address": "0x7Ba87E33b5EC5f5E7539a6b42D94Fd5DCA4A5F98", "label": "Ava Labs Treasury", "category": "vc"},
+  {"address": "0x2F5B0C9Df43C6B6B8C6F1f2E7c8B4B9E1D2A5C7F", "label": "DeFi Power User #1", "category": "dex_trader"},
+  {"address": "0x8C1B5a2D5A3E6F7B8C9D0E1F2A3B4C5D6E7F8A9B", "label": "VC Fund Wallet", "category": "vc"}
+]

@@ -1,0 +1,46 @@
+# Web framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+
+# Database
+sqlalchemy[asyncio]==2.0.35
+asyncpg==0.30.0
+supabase==2.9.0
+
+# Blockchain
+web3==7.5.0
+eth-account>=0.13.1
+
+# AI
+anthropic==0.39.0
+
+# Telegram
+python-telegram-bot==21.6
+telethon==1.37.0
+
+# Background tasks
+apscheduler==3.10.4
+
+# HTTP client
+httpx==0.27.0
+
+# Data processing
+feedparser==6.0.11
+pydantic==2.9.0
+pydantic-settings==2.5.0
+
+# Retry logic
+tenacity==9.0.0
+
+# Agent Lightning (Microsoft RL framework)
+agentlightning>=0.1.0
+
+# Encryption (for Clawntenna bridge)
+cryptography>=42.0.0
+
+# Utilities
+python-dotenv==1.0.1
+structlog==24.4.0
+
+# Redis
+redis==5.1.0

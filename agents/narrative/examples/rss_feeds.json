@@ -1,0 +1,12 @@
+[
+  {"name": "CoinDesk", "url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "category": "news"},
+  {"name": "CoinTelegraph", "url": "https://cointelegraph.com/rss", "category": "news"},
+  {"name": "The Block", "url": "https://www.theblock.co/rss.xml", "category": "news"},
+  {"name": "Decrypt", "url": "https://decrypt.co/feed", "category": "news"},
+  {"name": "DeFi Llama News", "url": "https://defillama.com/rss", "category": "defi"},
+  {"name": "Blockworks", "url": "https://blockworks.co/feed", "category": "research"},
+  {"name": "Avalanche Blog", "url": "https://medium.com/feed/avalancheavax", "category": "news"},
+  {"name": "Messari", "url": "https://messari.io/rss", "category": "research"},
+  {"name": "Bankless", "url": "https://www.bankless.com/rss.xml", "category": "research"},
+  {"name": "The Defiant", "url": "https://thedefiant.io/feed", "category": "defi"}
+]

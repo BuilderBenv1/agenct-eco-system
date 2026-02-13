@@ -1,0 +1,33 @@
+# Environment & secrets
+.env
+*.session
+tipster_session.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+lightning_data/
+
+# Docker
+.docker/
+
+# Windows
+nul

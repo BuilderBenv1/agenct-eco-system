@@ -1,0 +1,9 @@
+{
+  "name": "agentproof-clawntenna-bridge",
+  "version": "1.0.0",
+  "description": "Bridge between Python agents and Clawntenna TypeScript SDK",
+  "main": "bridge.js",
+  "dependencies": {
+    "clawntenna": "latest"
+  }
+}

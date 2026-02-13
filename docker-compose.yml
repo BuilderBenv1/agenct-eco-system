@@ -1,0 +1,103 @@
+version: "3.9"
+
+services:
+  tipster:
+    build: .
+    container_name: agentproof-tipster
+    command: uvicorn agents.tipster.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  whale:
+    build: .
+    container_name: agentproof-whale
+    command: uvicorn agents.whale.main:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  narrative:
+    build: .
+    container_name: agentproof-narrative
+    command: uvicorn agents.narrative.main:app --host 0.0.0.0 --port 8003
+    ports:
+      - "8003:8003"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  convergence:
+    build: .
+    container_name: agentproof-convergence
+    command: uvicorn shared.convergence_main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - tipster
+      - whale
+      - narrative
+
+  auditor:
+    build: .
+    container_name: agentproof-auditor
+    command: uvicorn agents.auditor.main:app --host 0.0.0.0 --port 8004
+    ports:
+      - "8004:8004"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  liquidation:
+    build: .
+    container_name: agentproof-liquidation
+    command: uvicorn agents.liquidation.main:app --host 0.0.0.0 --port 8005
+    ports:
+      - "8005:8005"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  yield_oracle:
+    build: .
+    container_name: agentproof-yield-oracle
+    command: uvicorn agents.yield_oracle.main:app --host 0.0.0.0 --port 8006
+    ports:
+      - "8006:8006"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  bot:
+    build: .
+    container_name: agentproof-bot
+    command: python -m bot.main
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - tipster
+      - whale
+      - narrative
+      - convergence
+      - auditor
+      - liquidation
+      - yield_oracle
+
+  redis:
+    image: redis:7-alpine
+    container_name: agentproof-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped

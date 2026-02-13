@@ -1,0 +1,50 @@
+[
+  {
+    "raw_text": "AVAX is going to the moon! 🚀🚀🚀 LFG!!!",
+    "expected": {
+      "is_signal": false,
+      "reasoning": "Hype/meme message with no actionable information - no entry, targets, or risk parameters."
+    }
+  },
+  {
+    "raw_text": "Avalanche Foundation just announced a $50M ecosystem fund for DeFi projects.",
+    "expected": {
+      "is_signal": false,
+      "reasoning": "News item, not a trading signal. No buy/sell recommendation."
+    }
+  },
+  {
+    "raw_text": "Who else is bullish on AVAX? Drop a 🔥 if you're holding!",
+    "expected": {
+      "is_signal": false,
+      "reasoning": "Engagement/poll message. No trading signal."
+    }
+  },
+  {
+    "raw_text": "BTC at 45k, ETH at 2.3k, AVAX at 25. Markets are quiet today.",
+    "expected": {
+      "is_signal": false,
+      "reasoning": "Price update/market summary, not a directional trading signal."
+    }
+  },
+  {
+    "raw_text": "I think $AVAX might go up or down from here, hard to say really. Maybe buy some if you want.",
+    "expected": {
+      "is_signal": false,
+      "reasoning": "Ambiguous, non-committal statement. No clear direction or parameters."
+    }
+  },
+  {
+    "raw_text": "Entry: $25.50\nTP: $28\nSL: $23\nBuy $AVAX",
+    "expected": {
+      "is_signal": true,
+      "token_symbol": "AVAX",
+      "signal_type": "BUY",
+      "confidence": 0.8,
+      "entry_price": 25.50,
+      "target_prices": [28.00],
+      "stop_loss": 23.00,
+      "reasoning": "Minimal but complete signal with entry, target, and stop-loss."
+    }
+  }
+]

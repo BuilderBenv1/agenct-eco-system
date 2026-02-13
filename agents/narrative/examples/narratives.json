@@ -1,0 +1,62 @@
+[
+  {
+    "name": "AI Agents",
+    "category": "ai",
+    "description": "Autonomous AI agents operating on-chain, trading, and providing services",
+    "example_tokens": ["VIRTUAL", "AI16Z", "AIXBT", "GRIFFAIN"]
+  },
+  {
+    "name": "RWA Tokenization",
+    "category": "defi",
+    "description": "Real-world asset tokenization including treasuries, real estate, commodities",
+    "example_tokens": ["ONDO", "MKR", "CRVUSD"]
+  },
+  {
+    "name": "Layer 2 Wars",
+    "category": "l2",
+    "description": "Competition between Ethereum L2 solutions for TVL and users",
+    "example_tokens": ["OP", "ARB", "STRK", "BLAST"]
+  },
+  {
+    "name": "Bitcoin DeFi",
+    "category": "defi",
+    "description": "DeFi protocols building on Bitcoin (Ordinals, BRC-20, Runes)",
+    "example_tokens": ["STX", "ORDI", "RUNE"]
+  },
+  {
+    "name": "Modular Blockchain",
+    "category": "l1",
+    "description": "Modular architecture separating execution, DA, and consensus",
+    "example_tokens": ["TIA", "MANTA", "DYM"]
+  },
+  {
+    "name": "GameFi Revival",
+    "category": "gaming",
+    "description": "New wave of blockchain games with better UX and token models",
+    "example_tokens": ["IMX", "RONIN", "BEAM"]
+  },
+  {
+    "name": "Meme Supercycle",
+    "category": "meme",
+    "description": "Meme tokens as cultural movements and community tokens",
+    "example_tokens": ["DOGE", "PEPE", "WIF", "BONK"]
+  },
+  {
+    "name": "DePIN",
+    "category": "defi",
+    "description": "Decentralized physical infrastructure networks",
+    "example_tokens": ["HNT", "RNDR", "FIL", "AKT"]
+  },
+  {
+    "name": "Avalanche Ecosystem",
+    "category": "l1",
+    "description": "Growth and development within the Avalanche ecosystem",
+    "example_tokens": ["AVAX", "JOE", "GMX", "QI"]
+  },
+  {
+    "name": "Crypto Regulation",
+    "category": "regulation",
+    "description": "Government regulation of crypto including ETFs, stablecoin bills, enforcement",
+    "example_tokens": []
+  }
+]

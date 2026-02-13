@@ -1,0 +1,60 @@
+[
+  {
+    "raw_text": "🚀 $AVAX looking strong at $25.50. Entry here, TP1 $28, TP2 $32, SL $23. 1-2 week swing. Risk/reward 3:1.",
+    "expected": {
+      "is_signal": true,
+      "token_symbol": "AVAX",
+      "token_name": "Avalanche",
+      "signal_type": "BUY",
+      "confidence": 0.85,
+      "entry_price": 25.50,
+      "target_prices": [28.00, 32.00],
+      "stop_loss": 23.00,
+      "timeframe": "1-2 weeks",
+      "reasoning": "Clear BUY with specific entry, two targets, stop-loss, and timeframe. Well-structured signal."
+    }
+  },
+  {
+    "raw_text": "JOE/USDC: Short-term sell signal. Price rejected at $0.45 resistance. Target $0.38, stop at $0.47.",
+    "expected": {
+      "is_signal": true,
+      "token_symbol": "JOE",
+      "token_name": "Trader Joe",
+      "signal_type": "SELL",
+      "confidence": 0.75,
+      "entry_price": 0.45,
+      "target_prices": [0.38],
+      "stop_loss": 0.47,
+      "timeframe": "short-term",
+      "reasoning": "Clear SELL signal with resistance rejection, target, and stop-loss."
+    }
+  },
+  {
+    "raw_text": "Still holding $GMX from $35. Adding more here at $42 with a $55 target. This protocol keeps delivering revenue. Long term hold.",
+    "expected": {
+      "is_signal": true,
+      "token_symbol": "GMX",
+      "signal_type": "BUY",
+      "confidence": 0.6,
+      "entry_price": 42.00,
+      "target_prices": [55.00],
+      "stop_loss": null,
+      "timeframe": "long-term",
+      "reasoning": "BUY/accumulate signal with entry and target, but no explicit stop-loss reduces confidence."
+    }
+  },
+  {
+    "raw_text": "⚠️ AVOID $SCAMTOKEN - team is anonymous, liquidity is locked for only 7 days, contract not verified. Classic rug setup.",
+    "expected": {
+      "is_signal": true,
+      "token_symbol": "SCAMTOKEN",
+      "signal_type": "AVOID",
+      "confidence": 0.9,
+      "entry_price": null,
+      "target_prices": [],
+      "stop_loss": null,
+      "timeframe": null,
+      "reasoning": "Clear AVOID warning with multiple red flags identified."
+    }
+  }
+]
