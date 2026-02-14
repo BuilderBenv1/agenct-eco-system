@@ -10,6 +10,10 @@ All agents accessible via their original paths:
   /api/v1/auditor/...
   /api/v1/liquidation/...
   /api/v1/yield/...
+  /api/v1/dca/...
+  /api/v1/grid/...
+  /api/v1/sos/...
+  /api/v1/sniper/...
 
 Scheduled jobs from all agents run inside this single process.
 """
@@ -30,6 +34,10 @@ from agents.narrative.routes.api import router as narrative_router
 from agents.auditor.routes.api import router as auditor_router
 from agents.liquidation.routes.api import router as liquidation_router
 from agents.yield_oracle.routes.api import router as yield_router
+from agents.dca.routes.api import router as dca_router
+from agents.grid.routes.api import router as grid_router
+from agents.sos.routes.api import router as sos_router
+from agents.sniper.routes.api import router as sniper_router
 
 # Import scheduled job functions
 from agents.tipster.services.tracker import check_signal_prices
@@ -43,6 +51,17 @@ from agents.liquidation.services.predictor import predict_at_risk_positions
 from agents.liquidation.services.tracker import check_prediction_outcomes
 from agents.yield_oracle.services.scraper import scrape_and_save
 from agents.yield_oracle.services.scorer import score_all_opportunities
+
+# Trading bot job functions
+from agents.dca.services.executor import execute_due_dcas
+from agents.dca.services.dip_detector import check_dip_buys
+from agents.grid.services.engine import check_and_fill_orders as grid_check_orders
+from agents.grid.services.rebalancer import rebalance_grids
+from agents.sos.services.monitor import check_crash_conditions, check_health_factors
+from agents.sniper.services.scanner import scan_new_launches
+from agents.sniper.services.filter import run_safety_filters
+from agents.sniper.services.executor import execute_snipe
+from agents.sniper.services.exit_manager import check_exits as sniper_check_exits
 
 
 # Convergence detection + API
@@ -279,7 +298,7 @@ async def _safe_run(name, fn):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("gateway_starting", agents=7)
+    logger.info("gateway_starting", agents=11)
     start_scheduler()
 
     # Tipster jobs
@@ -344,6 +363,53 @@ async def lifespan(app: FastAPI):
         "interval", seconds=settings.CONVERGENCE_CHECK_INTERVAL, id="gw_convergence"
     )
 
+    # DCA Bot jobs
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("dca_execute", execute_due_dcas)),
+        "interval", seconds=60, id="gw_dca_execute"
+    )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("dca_dip", check_dip_buys)),
+        "interval", seconds=300, id="gw_dca_dip"
+    )
+
+    # Grid Trading Bot jobs
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("grid_check", grid_check_orders)),
+        "interval", seconds=30, id="gw_grid_check"
+    )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("grid_rebalance", rebalance_grids)),
+        "interval", seconds=3600, id="gw_grid_rebalance"
+    )
+
+    # SOS Emergency Bot jobs
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("sos_crash", check_crash_conditions)),
+        "interval", seconds=60, id="gw_sos_crash"
+    )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("sos_health", check_health_factors)),
+        "interval", seconds=120, id="gw_sos_health"
+    )
+
+    # Sniper Bot jobs
+    async def _sniper_scan():
+        launches = await scan_new_launches()
+        if launches:
+            approved = await run_safety_filters(launches)
+            for item in approved:
+                await execute_snipe(item["config"], item["launch"])
+
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("sniper_scan", _sniper_scan)),
+        "interval", seconds=15, id="gw_sniper_scan"
+    )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("sniper_exits", sniper_check_exits)),
+        "interval", seconds=30, id="gw_sniper_exits"
+    )
+
     yield
 
     stop_scheduler()
@@ -352,7 +418,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AgentProof Gateway",
-    description="Unified API gateway for the AgentProof 7-agent intelligence network on Avalanche.",
+    description="Unified API gateway for the AgentProof 11-agent intelligence + trading network on Avalanche.",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -375,6 +441,10 @@ app.include_router(liquidation_router)
 app.include_router(yield_router)
 app.include_router(convergence_router)
 app.include_router(analytics_router)
+app.include_router(dca_router)
+app.include_router(grid_router)
+app.include_router(sos_router)
+app.include_router(sniper_router)
 
 
 @app.get("/health")
@@ -400,7 +470,7 @@ async def gateway_health():
         "status": "ok" if db_ok else "degraded",
         "gateway": "agentproof",
         "version": "1.0.0",
-        "agents": 7,
+        "agents": 11,
         "database": "connected" if db_ok else "disconnected",
         "db_error": db_error,
         "endpoints": [
@@ -411,6 +481,10 @@ async def gateway_health():
             "/api/v1/liquidation/health",
             "/api/v1/yield/health",
             "/api/v1/convergence/health",
+            "/api/v1/dca/health",
+            "/api/v1/grid/health",
+            "/api/v1/sos/health",
+            "/api/v1/sniper/health",
         ],
     }
 
@@ -419,7 +493,7 @@ async def gateway_health():
 async def root():
     return {
         "name": "AgentProof",
-        "description": "7-agent AI intelligence network on Avalanche",
+        "description": "11-agent AI intelligence + trading network on Avalanche",
         "docs": "/docs",
         "health": "/health",
         "agents": {
@@ -429,5 +503,9 @@ async def root():
             "auditor": "/api/v1/auditor/health",
             "liquidation": "/api/v1/liquidation/health",
             "yield_oracle": "/api/v1/yield/health",
+            "dca": "/api/v1/dca/health",
+            "grid": "/api/v1/grid/health",
+            "sos": "/api/v1/sos/health",
+            "sniper": "/api/v1/sniper/health",
         },
     }

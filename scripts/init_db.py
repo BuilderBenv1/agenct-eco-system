@@ -544,6 +544,252 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_model ON yield_portfolios(model_type);
 CREATE INDEX IF NOT EXISTS idx_portfolio_date ON yield_portfolios(snapshot_date DESC);
 
 -- Yield reports
+-- ============================================================
+-- DCA BOT TABLES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS dca_configs (
+    id SERIAL PRIMARY KEY,
+    wallet_address VARCHAR(66) NOT NULL,
+    token_address VARCHAR(66) NOT NULL,
+    token_symbol VARCHAR(20) NOT NULL,
+    amount_usd REAL NOT NULL,
+    frequency VARCHAR(20) DEFAULT 'daily',
+    buy_dips BOOLEAN DEFAULT FALSE,
+    dip_threshold_pct REAL DEFAULT 10.0,
+    take_profit_pct REAL DEFAULT 100.0,
+    take_profit_sell_pct REAL DEFAULT 25.0,
+    is_active BOOLEAN DEFAULT TRUE,
+    next_execution_at TIMESTAMPTZ,
+    total_invested_usd REAL DEFAULT 0.0,
+    total_tokens_bought REAL DEFAULT 0.0,
+    avg_cost_basis REAL DEFAULT 0.0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_dca_configs_wallet ON dca_configs(wallet_address);
+CREATE INDEX IF NOT EXISTS idx_dca_configs_active ON dca_configs(is_active);
+
+CREATE TABLE IF NOT EXISTS dca_purchases (
+    id SERIAL PRIMARY KEY,
+    config_id INTEGER REFERENCES dca_configs(id) ON DELETE CASCADE,
+    amount_usd REAL NOT NULL,
+    tokens_received REAL DEFAULT 0.0,
+    price_at_buy REAL DEFAULT 0.0,
+    tx_hash VARCHAR(66),
+    was_dip_buy BOOLEAN DEFAULT FALSE,
+    executed_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_dca_purchases_config ON dca_purchases(config_id);
+CREATE INDEX IF NOT EXISTS idx_dca_purchases_executed ON dca_purchases(executed_at);
+
+CREATE TABLE IF NOT EXISTS dca_reports (
+    id SERIAL PRIMARY KEY,
+    report_type VARCHAR(30) DEFAULT 'daily',
+    period_start TIMESTAMPTZ NOT NULL,
+    period_end TIMESTAMPTZ NOT NULL,
+    total_configs INTEGER DEFAULT 0,
+    total_invested REAL DEFAULT 0.0,
+    current_value REAL DEFAULT 0.0,
+    pnl_pct REAL DEFAULT 0.0,
+    purchases_made INTEGER DEFAULT 0,
+    dip_buys_made INTEGER DEFAULT 0,
+    report_text TEXT,
+    proof_hash VARCHAR(66),
+    proof_tx_hash VARCHAR(66),
+    proof_uri TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- GRID TRADING BOT TABLES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS grid_configs (
+    id SERIAL PRIMARY KEY,
+    wallet_address VARCHAR(66) NOT NULL,
+    token_symbol VARCHAR(20) NOT NULL,
+    token_address VARCHAR(66) NOT NULL,
+    lower_price REAL NOT NULL,
+    upper_price REAL NOT NULL,
+    grid_levels INTEGER DEFAULT 10,
+    amount_per_grid REAL NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    total_profit_usd REAL DEFAULT 0.0,
+    completed_cycles INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_grid_configs_wallet ON grid_configs(wallet_address);
+CREATE INDEX IF NOT EXISTS idx_grid_configs_active ON grid_configs(is_active);
+
+CREATE TABLE IF NOT EXISTS grid_orders (
+    id SERIAL PRIMARY KEY,
+    config_id INTEGER REFERENCES grid_configs(id) ON DELETE CASCADE,
+    level_index INTEGER NOT NULL,
+    order_type VARCHAR(10) NOT NULL,
+    price REAL NOT NULL,
+    amount REAL DEFAULT 0.0,
+    amount_usd REAL DEFAULT 0.0,
+    status VARCHAR(20) DEFAULT 'pending',
+    fill_tx_hash VARCHAR(66),
+    filled_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_grid_orders_config ON grid_orders(config_id);
+CREATE INDEX IF NOT EXISTS idx_grid_orders_status ON grid_orders(status);
+
+CREATE TABLE IF NOT EXISTS grid_reports (
+    id SERIAL PRIMARY KEY,
+    report_type VARCHAR(30) DEFAULT 'daily',
+    period_start TIMESTAMPTZ NOT NULL,
+    period_end TIMESTAMPTZ NOT NULL,
+    active_grids INTEGER DEFAULT 0,
+    cycles_completed INTEGER DEFAULT 0,
+    profit_per_cycle REAL DEFAULT 0.0,
+    total_profit REAL DEFAULT 0.0,
+    orders_filled INTEGER DEFAULT 0,
+    report_text TEXT,
+    proof_hash VARCHAR(66),
+    proof_tx_hash VARCHAR(66),
+    proof_uri TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- SOS EMERGENCY BOT TABLES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS sos_configs (
+    id SERIAL PRIMARY KEY,
+    wallet_address VARCHAR(66) NOT NULL,
+    tokens_to_protect JSONB DEFAULT '[]',
+    crash_threshold_pct REAL DEFAULT 15.0,
+    protocol_tvl_threshold_pct REAL DEFAULT 50.0,
+    health_factor_threshold REAL DEFAULT 1.05,
+    exit_to_token VARCHAR(66) DEFAULT 'USDC',
+    is_active BOOLEAN DEFAULT TRUE,
+    triggers_fired INTEGER DEFAULT 0,
+    total_value_saved_usd REAL DEFAULT 0.0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sos_configs_wallet ON sos_configs(wallet_address);
+CREATE INDEX IF NOT EXISTS idx_sos_configs_active ON sos_configs(is_active);
+
+CREATE TABLE IF NOT EXISTS sos_events (
+    id SERIAL PRIMARY KEY,
+    config_id INTEGER REFERENCES sos_configs(id) ON DELETE CASCADE,
+    trigger_type VARCHAR(30) NOT NULL,
+    trigger_details JSONB DEFAULT '{}',
+    tokens_exited JSONB DEFAULT '[]',
+    total_value_saved_usd REAL DEFAULT 0.0,
+    exit_tx_hashes JSONB DEFAULT '[]',
+    triggered_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sos_events_config ON sos_events(config_id);
+CREATE INDEX IF NOT EXISTS idx_sos_events_type ON sos_events(trigger_type);
+CREATE INDEX IF NOT EXISTS idx_sos_events_triggered ON sos_events(triggered_at);
+
+CREATE TABLE IF NOT EXISTS sos_reports (
+    id SERIAL PRIMARY KEY,
+    report_type VARCHAR(30) DEFAULT 'daily',
+    period_start TIMESTAMPTZ NOT NULL,
+    period_end TIMESTAMPTZ NOT NULL,
+    active_configs INTEGER DEFAULT 0,
+    events_triggered INTEGER DEFAULT 0,
+    total_value_saved REAL DEFAULT 0.0,
+    triggers_by_type JSONB DEFAULT '{}',
+    report_text TEXT,
+    proof_hash VARCHAR(66),
+    proof_tx_hash VARCHAR(66),
+    proof_uri TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- SNIPER BOT TABLES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS sniper_configs (
+    id SERIAL PRIMARY KEY,
+    wallet_address VARCHAR(66) NOT NULL,
+    max_buy_amount_usd REAL DEFAULT 50.0,
+    min_liquidity_usd REAL DEFAULT 5000.0,
+    max_buy_tax_pct REAL DEFAULT 10.0,
+    require_renounced BOOLEAN DEFAULT FALSE,
+    require_lp_burned BOOLEAN DEFAULT FALSE,
+    take_profit_multiplier REAL DEFAULT 2.0,
+    stop_loss_pct REAL DEFAULT 50.0,
+    is_active BOOLEAN DEFAULT TRUE,
+    total_trades INTEGER DEFAULT 0,
+    profitable_trades INTEGER DEFAULT 0,
+    total_pnl_usd REAL DEFAULT 0.0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sniper_configs_wallet ON sniper_configs(wallet_address);
+CREATE INDEX IF NOT EXISTS idx_sniper_configs_active ON sniper_configs(is_active);
+
+CREATE TABLE IF NOT EXISTS sniper_trades (
+    id SERIAL PRIMARY KEY,
+    config_id INTEGER REFERENCES sniper_configs(id) ON DELETE CASCADE,
+    token_address VARCHAR(66) NOT NULL,
+    token_symbol VARCHAR(20),
+    buy_price REAL,
+    buy_amount_usd REAL,
+    buy_tx_hash VARCHAR(66),
+    bought_at TIMESTAMPTZ DEFAULT NOW(),
+    sell_price REAL,
+    sell_amount_usd REAL,
+    sell_tx_hash VARCHAR(66),
+    sold_at TIMESTAMPTZ,
+    pnl_usd REAL,
+    pnl_pct REAL,
+    status VARCHAR(20) DEFAULT 'open',
+    safety_score INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sniper_trades_config ON sniper_trades(config_id);
+CREATE INDEX IF NOT EXISTS idx_sniper_trades_status ON sniper_trades(status);
+CREATE INDEX IF NOT EXISTS idx_sniper_trades_token ON sniper_trades(token_address);
+
+CREATE TABLE IF NOT EXISTS sniper_launches (
+    id SERIAL PRIMARY KEY,
+    token_address VARCHAR(66) NOT NULL,
+    token_symbol VARCHAR(20),
+    pair_address VARCHAR(66),
+    initial_liquidity_usd REAL,
+    deployer_address VARCHAR(66),
+    passed_filters BOOLEAN DEFAULT FALSE,
+    reason_rejected TEXT,
+    detected_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sniper_launches_token ON sniper_launches(token_address);
+CREATE INDEX IF NOT EXISTS idx_sniper_launches_detected ON sniper_launches(detected_at);
+
+CREATE TABLE IF NOT EXISTS sniper_reports (
+    id SERIAL PRIMARY KEY,
+    report_type VARCHAR(30) DEFAULT 'daily',
+    period_start TIMESTAMPTZ NOT NULL,
+    period_end TIMESTAMPTZ NOT NULL,
+    launches_detected INTEGER DEFAULT 0,
+    trades_executed INTEGER DEFAULT 0,
+    profitable_trades INTEGER DEFAULT 0,
+    win_rate REAL DEFAULT 0.0,
+    total_pnl_usd REAL DEFAULT 0.0,
+    report_text TEXT,
+    proof_hash VARCHAR(66),
+    proof_tx_hash VARCHAR(66),
+    proof_uri TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- YIELD REPORTS (existing)
+-- ============================================================
+
 CREATE TABLE IF NOT EXISTS yield_reports (
     id SERIAL PRIMARY KEY,
     report_type VARCHAR(30) DEFAULT 'daily',
