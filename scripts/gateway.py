@@ -42,6 +42,7 @@ from agents.sniper.routes.api import router as sniper_router
 # Import scheduled job functions
 from agents.tipster.services.tracker import check_signal_prices
 from agents.whale.services.analyzer import analyze_pending_transactions
+from agents.whale.services.monitor import poll_whale_transactions
 from agents.narrative.services.analyzer import analyze_pending_items as narrative_analyze
 from agents.narrative.services.trend_detector import detect_trends as narrative_detect_trends
 from agents.auditor.services.analyzer import analyze_pending_scans
@@ -307,7 +308,11 @@ async def lifespan(app: FastAPI):
         "interval", seconds=900, id="gw_tipster_prices"
     )
 
-    # Whale jobs
+    # Whale jobs — poll first (detects txns), then analyze
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("whale_poll", poll_whale_transactions)),
+        "interval", seconds=30, id="gw_whale_poll"
+    )
     scheduler.add_job(
         lambda: asyncio.ensure_future(_safe_run("whale_analyze", analyze_pending_transactions)),
         "interval", seconds=300, id="gw_whale_analyze"
