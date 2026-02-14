@@ -34,6 +34,14 @@ class YieldOpportunity(Base, TimestampMixin):
     # Risk-adjusted return
     risk_adjusted_apy = Column(Float, default=0.0)  # APY / risk_score * 100
 
+    # Advanced risk metrics
+    sharpe_ratio = Column(Float)
+    sortino_ratio = Column(Float)
+    max_drawdown = Column(Float)          # Percentage, e.g. -12.4
+    volatility_30d = Column(Float)        # Annualized 30-day volatility
+    var_95 = Column(Float)                # 95% Value at Risk (daily)
+    profit_factor = Column(Float)
+
     # Recommendation
     recommendation = Column(String(20))  # 'strong_buy', 'buy', 'hold', 'avoid'
     analysis_text = Column(Text)

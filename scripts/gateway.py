@@ -48,7 +48,8 @@ from agents.yield_oracle.services.scorer import score_all_opportunities
 # Convergence detection + API
 from shared.convergence import detect_convergence, get_recent_convergences, get_convergence_stats
 from shared.config import settings
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from datetime import datetime, timezone, timedelta
 
 convergence_router = APIRouter(prefix="/api/v1/convergence", tags=["convergence"])
 
@@ -60,7 +61,10 @@ async def convergence_health():
 
 
 @convergence_router.get("/signals")
-async def convergence_signals(limit: int = 20):
+async def convergence_signals(
+    limit: int = 20,
+    since: str | None = Query(None, pattern="^(1d|7d|30d|90d|365d)$"),
+):
     return await get_recent_convergences(limit=limit)
 
 
@@ -79,6 +83,191 @@ async def convergence_trigger():
             for r in results
         ],
     }
+
+
+# ---------- Analytics Router (whale PnL, correlation, journal) ----------
+from shared.database import async_session as _async_session
+from sqlalchemy import select as _select, func as _func, text as _text
+
+analytics_router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
+
+
+@analytics_router.get("/whale/summary")
+async def whale_summary(since: str = Query("30d", pattern="^(1d|7d|30d|90d|365d)$")):
+    """Whale PnL summary: volume, tx counts, top tokens, win/loss by token."""
+    if _async_session is None:
+        return {"error": "no db"}
+
+    from agents.whale.models.db import WhaleTransaction, WhaleAnalysis
+
+    mapping = {"1d": 1, "7d": 7, "30d": 30, "90d": 90, "365d": 365}
+    cutoff = datetime.now(timezone.utc) - timedelta(days=mapping.get(since, 30))
+
+    async with _async_session() as db:
+        # Total volume and count
+        agg = await db.execute(
+            _select(
+                _func.count().label("total_txns"),
+                _func.coalesce(_func.sum(WhaleTransaction.amount_usd), 0).label("total_volume"),
+                _func.count(_func.distinct(WhaleTransaction.token_symbol)).label("unique_tokens"),
+            ).where(WhaleTransaction.detected_at >= cutoff)
+        )
+        row = agg.first()
+
+        # Top tokens by volume
+        top_tokens = await db.execute(
+            _select(
+                WhaleTransaction.token_symbol,
+                _func.count().label("tx_count"),
+                _func.coalesce(_func.sum(WhaleTransaction.amount_usd), 0).label("volume"),
+            )
+            .where(WhaleTransaction.detected_at >= cutoff, WhaleTransaction.token_symbol.isnot(None))
+            .group_by(WhaleTransaction.token_symbol)
+            .order_by(_func.sum(WhaleTransaction.amount_usd).desc())
+            .limit(10)
+        )
+
+        # Significance distribution
+        sig_dist = await db.execute(
+            _select(
+                WhaleAnalysis.significance,
+                _func.count().label("count"),
+            )
+            .where(WhaleAnalysis.created_at >= cutoff)
+            .group_by(WhaleAnalysis.significance)
+        )
+
+        return {
+            "period": since,
+            "total_transactions": row.total_txns if row else 0,
+            "total_volume_usd": float(row.total_volume) if row else 0,
+            "unique_tokens": row.unique_tokens if row else 0,
+            "top_tokens": [
+                {"token": t.token_symbol, "tx_count": t.tx_count, "volume_usd": float(t.volume)}
+                for t in top_tokens
+            ],
+            "significance_distribution": {
+                s.significance: s.count for s in sig_dist
+            },
+        }
+
+
+@analytics_router.get("/correlation")
+async def token_correlation():
+    """Token co-occurrence matrix from convergence data."""
+    if _async_session is None:
+        return {"pairs": []}
+
+    from shared.models.convergence import ConvergenceSignal
+
+    async with _async_session() as db:
+        # Get all convergence signals to build co-occurrence
+        result = await db.execute(
+            _select(ConvergenceSignal)
+            .order_by(ConvergenceSignal.detected_at.desc())
+            .limit(200)
+        )
+        signals = result.scalars().all()
+
+    # Build token-agent co-occurrence from agents_involved
+    token_agents: dict[str, list[str]] = {}
+    for s in signals:
+        token_agents.setdefault(s.token_symbol, []).extend(s.agents_involved or [])
+
+    # Build token-token co-occurrence from whale + tipster overlap
+    # For now, return token-to-agent frequency
+    return {
+        "tokens": [
+            {
+                "token": token,
+                "agent_mentions": len(agents),
+                "agents": list(set(agents)),
+                "convergence_count": sum(1 for s in signals if s.token_symbol == token),
+            }
+            for token, agents in sorted(token_agents.items(), key=lambda x: -len(x[1]))[:20]
+        ],
+        "total_signals": len(signals),
+    }
+
+
+@analytics_router.get("/accuracy")
+async def agent_accuracy():
+    """Agent accuracy dashboard: track prediction outcomes across all agents."""
+    if _async_session is None:
+        return {"agents": []}
+
+    agents_data = []
+
+    async with _async_session() as db:
+        # Auditor accuracy: flagged as danger/rug vs actual outcome
+        from agents.auditor.models.db import ContractScan
+        total_scans = await db.execute(_select(_func.count()).select_from(ContractScan))
+        flagged = await db.execute(
+            _select(_func.count()).select_from(ContractScan)
+            .where(ContractScan.risk_label.in_(["danger", "rug"]))
+        )
+        confirmed = await db.execute(
+            _select(_func.count()).select_from(ContractScan)
+            .where(ContractScan.actual_outcome == "rugged")
+        )
+        correct_flags = await db.execute(
+            _select(_func.count()).select_from(ContractScan)
+            .where(
+                ContractScan.risk_label.in_(["danger", "rug"]),
+                ContractScan.actual_outcome == "rugged",
+            )
+        )
+        ts = total_scans.scalar() or 0
+        fl = flagged.scalar() or 0
+        cf = confirmed.scalar() or 0
+        co = correct_flags.scalar() or 0
+        agents_data.append({
+            "agent": "Rug Auditor",
+            "total_predictions": ts,
+            "flagged": fl,
+            "confirmed_outcomes": cf,
+            "correct_predictions": co,
+            "accuracy": round(co / fl * 100, 1) if fl > 0 else 0,
+        })
+
+        # Liquidation accuracy
+        from agents.liquidation.models.db import LiquidationEvent
+        total_events = await db.execute(_select(_func.count()).select_from(LiquidationEvent))
+        predicted_events = await db.execute(
+            _select(_func.count()).select_from(LiquidationEvent)
+            .where(LiquidationEvent.was_predicted == True)
+        )
+        te = total_events.scalar() or 0
+        pe = predicted_events.scalar() or 0
+        agents_data.append({
+            "agent": "Liquidation Sentinel",
+            "total_predictions": te,
+            "correct_predictions": pe,
+            "accuracy": round(pe / te * 100, 1) if te > 0 else 0,
+        })
+
+        # Yield Oracle stats
+        from agents.yield_oracle.models.db import YieldOpportunity
+        total_opps = await db.execute(
+            _select(_func.count()).select_from(YieldOpportunity)
+            .where(YieldOpportunity.is_active == True)
+        )
+        avg_sharpe = await db.execute(
+            _select(_func.avg(YieldOpportunity.sharpe_ratio))
+            .where(YieldOpportunity.is_active == True, YieldOpportunity.sharpe_ratio.isnot(None))
+        )
+        strong_buys = await db.execute(
+            _select(_func.count()).select_from(YieldOpportunity)
+            .where(YieldOpportunity.recommendation == "strong_buy")
+        )
+        agents_data.append({
+            "agent": "Yield Oracle",
+            "total_opportunities": total_opps.scalar() or 0,
+            "avg_sharpe_ratio": round(avg_sharpe.scalar() or 0, 2),
+            "strong_buy_count": strong_buys.scalar() or 0,
+        })
+
+    return {"agents": agents_data}
 
 
 async def _safe_run(name, fn):
@@ -185,6 +374,7 @@ app.include_router(auditor_router)
 app.include_router(liquidation_router)
 app.include_router(yield_router)
 app.include_router(convergence_router)
+app.include_router(analytics_router)
 
 
 @app.get("/health")

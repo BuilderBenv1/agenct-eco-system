@@ -1,7 +1,7 @@
 """
 Whale Agent REST API routes.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +40,17 @@ async def health():
     return resp
 
 
+def _parse_since(since: str | None) -> datetime | None:
+    """Parse a 'since' param like '7d', '30d', '90d' into a cutoff datetime."""
+    if not since:
+        return None
+    mapping = {"1d": 1, "7d": 7, "30d": 30, "90d": 90, "365d": 365}
+    days = mapping.get(since)
+    if days:
+        return datetime.now(timezone.utc) - timedelta(days=days)
+    return None
+
+
 @router.get("/transactions", response_model=list[TransactionResponse])
 async def list_transactions(
     limit: int = Query(20, le=100),
@@ -47,10 +58,14 @@ async def list_transactions(
     tx_type: str | None = None,
     min_usd: float = Query(0, ge=0),
     wallet_address: str | None = None,
+    since: str | None = Query(None, pattern="^(1d|7d|30d|90d|365d)$"),
     db: AsyncSession = Depends(get_db),
     _key: bool = Depends(verify_api_key),
 ):
     q = select(WhaleTransaction)
+    cutoff = _parse_since(since)
+    if cutoff:
+        q = q.where(WhaleTransaction.detected_at >= cutoff)
     if tx_type:
         q = q.where(WhaleTransaction.tx_type == tx_type)
     if min_usd > 0:

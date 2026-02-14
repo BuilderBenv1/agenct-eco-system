@@ -1,6 +1,7 @@
 """
 Yield Oracle REST API routes.
 """
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,6 +43,14 @@ async def health():
     return resp
 
 
+def _parse_since(since: str | None) -> datetime | None:
+    if not since:
+        return None
+    mapping = {"1d": 1, "7d": 7, "30d": 30, "90d": 90, "365d": 365}
+    days = mapping.get(since)
+    return datetime.now(timezone.utc) - timedelta(days=days) if days else None
+
+
 @router.get("/opportunities", response_model=list[YieldResponse])
 async def list_opportunities(
     limit: int = Query(20, le=100),
@@ -50,12 +59,16 @@ async def list_opportunities(
     pool_type: str | None = None,
     min_apy: float = Query(0, ge=0),
     max_risk: int = Query(100, ge=0, le=100),
-    sort_by: str = Query("risk_adjusted_apy", pattern="^(apy|risk_adjusted_apy|tvl_usd|risk_score)$"),
+    sort_by: str = Query("risk_adjusted_apy", pattern="^(apy|risk_adjusted_apy|tvl_usd|risk_score|sharpe_ratio)$"),
+    since: str | None = Query(None, pattern="^(1d|7d|30d|90d|365d)$"),
     db: AsyncSession = Depends(get_db),
     _key: bool = Depends(verify_api_key),
 ):
     """List yield opportunities with filtering and sorting."""
     q = select(YieldOpportunity).where(YieldOpportunity.is_active == True)
+    cutoff = _parse_since(since)
+    if cutoff:
+        q = q.where(YieldOpportunity.last_updated >= cutoff)
 
     if protocol:
         q = q.where(YieldOpportunity.protocol == protocol)

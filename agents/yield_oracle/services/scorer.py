@@ -78,6 +78,51 @@ def compute_risk_adjusted_apy(apy: float, risk_score: int) -> float:
     return round(apy * (100 - risk_score) / 100, 2)
 
 
+def compute_advanced_metrics(apy: float, risk_score: int, tvl: float, protocol: str) -> dict:
+    """Estimate Sharpe, Sortino, VaR, drawdown from available data.
+    These are model-based estimates since we don't have full return series."""
+    import math
+
+    # Estimate annualized volatility from risk_score and APY
+    # Higher risk_score = higher estimated volatility
+    base_vol = (risk_score / 100) * 0.8 + 0.05  # 5%-85% annualized
+    apy_factor = min(apy / 100, 3.0)  # High APY = more volatile
+    volatility = base_vol * (1 + apy_factor * 0.2)
+    volatility = round(min(volatility, 2.0), 4)  # Cap at 200%
+
+    # Risk-free rate (AVAX staking ~8%)
+    rf = 0.08
+
+    # Sharpe ratio = (APY/100 - rf) / volatility
+    apy_decimal = (apy or 0) / 100
+    sharpe = round((apy_decimal - rf) / volatility, 2) if volatility > 0 else 0.0
+
+    # Sortino ratio = (APY/100 - rf) / downside_deviation
+    # Downside deviation ~ volatility * 0.7 (asymmetric estimate)
+    downside_dev = volatility * 0.7
+    sortino = round((apy_decimal - rf) / downside_dev, 2) if downside_dev > 0 else 0.0
+
+    # Max drawdown estimate from volatility (rule of thumb)
+    max_dd = round(-volatility * 1.5 * 100, 1)  # Percentage
+    max_dd = max(max_dd, -95.0)  # Floor at -95%
+
+    # VaR 95% (daily) = -1.645 * daily_vol * portfolio_value
+    daily_vol = volatility / math.sqrt(365)
+    var_95 = round(-1.645 * daily_vol * 100, 2)  # As percentage of position
+
+    # Profit factor estimate from Sharpe
+    profit_factor = round(max(0.5, 1.0 + sharpe * 0.5), 2)
+
+    return {
+        "sharpe_ratio": sharpe,
+        "sortino_ratio": sortino,
+        "max_drawdown": max_dd,
+        "volatility_30d": round(volatility * 100, 1),  # As percentage
+        "var_95": var_95,
+        "profit_factor": profit_factor,
+    }
+
+
 def get_recommendation(risk_adjusted_apy: float, risk_score: int, apy: float) -> str:
     """Generate recommendation based on risk-adjusted metrics."""
     if risk_score > 75:
@@ -109,6 +154,9 @@ async def score_all_opportunities():
         risk_score = compute_base_risk(opp)
         risk_adjusted = compute_risk_adjusted_apy(opp.apy or 0, risk_score)
         recommendation = get_recommendation(risk_adjusted, risk_score, opp.apy or 0)
+        metrics = compute_advanced_metrics(
+            opp.apy or 0, risk_score, opp.tvl_usd or 0, opp.protocol
+        )
 
         if async_session:
             async with async_session() as db:
@@ -119,6 +167,7 @@ async def score_all_opportunities():
                         risk_score=risk_score,
                         risk_adjusted_apy=risk_adjusted,
                         recommendation=recommendation,
+                        **metrics,
                     )
                 )
                 await db.commit()

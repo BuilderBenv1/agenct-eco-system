@@ -1,7 +1,7 @@
 """
 Auditor Agent REST API routes.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -78,17 +78,29 @@ async def scan_contract(
     )
 
 
+def _parse_since(since: str | None) -> datetime | None:
+    if not since:
+        return None
+    mapping = {"1d": 1, "7d": 7, "30d": 30, "90d": 90, "365d": 365}
+    days = mapping.get(since)
+    return datetime.now(timezone.utc) - timedelta(days=days) if days else None
+
+
 @router.get("/scans", response_model=list[ScanResponse])
 async def list_scans(
     limit: int = Query(20, le=100),
     offset: int = Query(0, ge=0),
     risk_label: str | None = None,
     min_risk: int = Query(0, ge=0, le=100),
+    since: str | None = Query(None, pattern="^(1d|7d|30d|90d|365d)$"),
     db: AsyncSession = Depends(get_db),
     _key: bool = Depends(verify_api_key),
 ):
     """List scanned contracts, optionally filtered by risk."""
     q = select(ContractScan)
+    cutoff = _parse_since(since)
+    if cutoff:
+        q = q.where(ContractScan.scanned_at >= cutoff)
     if risk_label:
         q = q.where(ContractScan.risk_label == risk_label)
     if min_risk > 0:

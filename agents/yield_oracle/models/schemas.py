@@ -16,6 +16,12 @@ class YieldResponse(BaseModel):
     tvl_usd: float = 0.0
     risk_score: int = 50
     risk_adjusted_apy: float = 0.0
+    sharpe_ratio: Optional[float] = None
+    sortino_ratio: Optional[float] = None
+    max_drawdown: Optional[float] = None
+    volatility_30d: Optional[float] = None
+    var_95: Optional[float] = None
+    profit_factor: Optional[float] = None
     recommendation: Optional[str]
     is_active: bool = True
     last_updated: Optional[datetime]
