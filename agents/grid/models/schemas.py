@@ -33,6 +33,7 @@ class GridConfigResponse(BaseModel):
     is_active: bool
     total_profit_usd: float
     completed_cycles: int
+    created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

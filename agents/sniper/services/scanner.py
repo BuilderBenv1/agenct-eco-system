@@ -24,19 +24,38 @@ async def scan_new_launches():
     try:
         current_block = w3.eth.block_number
         if _last_block == 0:
-            _last_block = current_block - 100  # Start from ~100 blocks ago
+            # Scan last ~2 hours on startup (~3600 blocks at 2s/block)
+            _last_block = current_block - 3600
 
-        # Get PairCreated events
-        event_filter = factory_contract.events.PairCreated.create_filter(
-            from_block=_last_block + 1,
-            to_block=current_block,
-        )
-        events = event_filter.get_all_entries()
+        if _last_block >= current_block:
+            return []
+
+        # Use get_logs instead of create_filter (more reliable across RPC providers)
+        # Scan in chunks of 2000 blocks to avoid RPC limits
+        chunk_size = 2000
+        from_block = _last_block + 1
+        all_events = []
+
+        while from_block <= current_block:
+            to_block = min(from_block + chunk_size - 1, current_block)
+            try:
+                events = factory_contract.events.PairCreated.get_logs(
+                    from_block=from_block,
+                    to_block=to_block,
+                )
+                all_events.extend(events)
+            except Exception as e:
+                logger.warning("scan_chunk_failed", from_block=from_block, to_block=to_block, error=str(e))
+            from_block = to_block + 1
+
         _last_block = current_block
+
+        if not all_events:
+            return []
 
         new_launches = []
         async with async_session() as db:
-            for event in events:
+            for event in all_events:
                 token0 = event["args"]["token0"]
                 token1 = event["args"]["token1"]
                 pair = event["args"]["pair"]

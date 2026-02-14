@@ -160,8 +160,8 @@ def swap_exact_tokens_for_avax(
     token = get_erc20_contract(from_token)
     allowance = token.functions.allowance(account.address, Web3.to_checksum_address(JOE_ROUTER)).call()
     if allowance < amount_in:
-        approve_token(from_token, JOE_ROUTER, 2**256 - 1, private_key)
-        w3.eth.wait_for_transaction_receipt(bytes.fromhex(approve_token(from_token, JOE_ROUTER, 2**256 - 1, private_key)), timeout=60)
+        approve_tx = approve_token(from_token, JOE_ROUTER, 2**256 - 1, private_key)
+        w3.eth.wait_for_transaction_receipt(bytes.fromhex(approve_tx), timeout=60)
 
     amounts_out = router_contract.functions.getAmountsOut(amount_in, path).call()
     min_out = int(amounts_out[-1] * (1 - slippage_pct / 100))
