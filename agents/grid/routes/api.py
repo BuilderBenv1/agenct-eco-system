@@ -131,6 +131,23 @@ async def list_orders(
     return list(result.scalars().all())
 
 
+@router.post("/trigger")
+async def trigger_check(
+    _key: bool = Depends(verify_api_key),
+):
+    """Manually trigger the grid order check cycle. Returns what happened."""
+    from agents.grid.services.engine import check_and_fill_orders
+    from shared.price_feed import get_price_by_symbol
+
+    # First, check what price we're getting
+    price = await get_price_by_symbol("AVAX")
+    try:
+        await check_and_fill_orders()
+        return {"status": "ok", "avax_price": price, "message": "check_and_fill_orders completed"}
+    except Exception as e:
+        return {"status": "error", "avax_price": price, "error": str(e)}
+
+
 @router.get("/stats", response_model=GridStatsResponse)
 async def get_stats(
     db: AsyncSession = Depends(get_db),
