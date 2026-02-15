@@ -41,12 +41,14 @@ from agents.sniper.routes.api import router as sniper_router
 
 # Import scheduled job functions
 from agents.tipster.services.tracker import check_signal_prices
+from agents.tipster.services.monitor import poll_channels as tipster_poll_channels
 from agents.whale.services.analyzer import analyze_pending_transactions
 from agents.whale.services.monitor import poll_whale_transactions
 from agents.narrative.services.analyzer import analyze_pending_items as narrative_analyze
 from agents.narrative.services.trend_detector import detect_trends as narrative_detect_trends
 from agents.auditor.services.analyzer import analyze_pending_scans
 from agents.auditor.services.tracker import check_all_outcomes as auditor_check_outcomes
+from agents.auditor.services.scanner import scan_and_save as auditor_scan_contracts
 from agents.liquidation.services.position_monitor import scan_all_positions
 from agents.liquidation.services.predictor import predict_at_risk_positions
 from agents.liquidation.services.tracker import check_prediction_outcomes
@@ -302,7 +304,11 @@ async def lifespan(app: FastAPI):
     logger.info("gateway_starting", agents=11)
     start_scheduler()
 
-    # Tipster jobs
+    # Tipster jobs — poll channels first (detects signals), then track prices
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("tipster_poll", tipster_poll_channels)),
+        "interval", seconds=300, id="gw_tipster_poll"
+    )
     scheduler.add_job(
         lambda: asyncio.ensure_future(_safe_run("tipster_prices", check_signal_prices)),
         "interval", seconds=900, id="gw_tipster_prices"
@@ -328,7 +334,11 @@ async def lifespan(app: FastAPI):
         "interval", seconds=1800, id="gw_narrative_trends"
     )
 
-    # Auditor jobs
+    # Auditor jobs — scan contracts first (detects issues), then analyze with Claude
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_safe_run("auditor_scan", auditor_scan_contracts)),
+        "interval", seconds=600, id="gw_auditor_scan"
+    )
     scheduler.add_job(
         lambda: asyncio.ensure_future(_safe_run("auditor_analyze", analyze_pending_scans)),
         "interval", seconds=120, id="gw_auditor_analyze"
