@@ -48,7 +48,7 @@ from agents.narrative.services.analyzer import analyze_pending_items as narrativ
 from agents.narrative.services.trend_detector import detect_trends as narrative_detect_trends
 from agents.auditor.services.analyzer import analyze_pending_scans
 from agents.auditor.services.tracker import check_all_outcomes as auditor_check_outcomes
-from agents.auditor.services.scanner import scan_and_save as auditor_scan_contracts
+from agents.auditor.services.scanner import discover_and_scan as auditor_scan_contracts
 from agents.liquidation.services.position_monitor import scan_all_positions
 from agents.liquidation.services.predictor import predict_at_risk_positions
 from agents.liquidation.services.tracker import check_prediction_outcomes

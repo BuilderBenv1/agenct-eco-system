@@ -371,3 +371,56 @@ async def scan_and_save(contract_address: str) -> ContractScan | None:
     if not scan_data:
         return None
     return await save_scan(scan_data)
+
+
+# ── Auto-discovery: scan new tokens from Trader Joe Factory ──
+
+_auditor_last_block = 0
+
+
+async def discover_and_scan():
+    """Auto-discover new token contracts from Trader Joe PairCreated events
+    and scan each one for rug risk. Called by the gateway scheduler."""
+    global _auditor_last_block
+
+    try:
+        from shared.dex import factory_contract, WAVAX
+
+        current_block = w3.eth.block_number
+        if _auditor_last_block == 0:
+            _auditor_last_block = current_block - 1800  # ~1 hour back on startup
+
+        if _auditor_last_block >= current_block:
+            return
+
+        chunk_size = 2000
+        from_block = _auditor_last_block + 1
+        scanned = 0
+
+        while from_block <= current_block:
+            to_block = min(from_block + chunk_size - 1, current_block)
+            try:
+                events = factory_contract.events.PairCreated.get_logs(
+                    from_block=from_block,
+                    to_block=to_block,
+                )
+                for event in events:
+                    token0 = event["args"]["token0"]
+                    token1 = event["args"]["token1"]
+                    # Scan the non-WAVAX token
+                    new_token = token0 if token1.lower() == WAVAX.lower() else token1
+                    if new_token.lower() == WAVAX.lower():
+                        continue
+                    result = await scan_and_save(new_token)
+                    if result:
+                        scanned += 1
+                        logger.info("auto_scan_complete", address=new_token[:10], risk=result.risk_label)
+            except Exception as e:
+                logger.warning("auditor_scan_chunk_failed", from_block=from_block, error=str(e))
+            from_block = to_block + 1
+
+        _auditor_last_block = current_block
+        if scanned:
+            logger.info("auditor_discovery_done", scanned=scanned)
+    except Exception as e:
+        logger.error("discover_and_scan_failed", error=str(e))
