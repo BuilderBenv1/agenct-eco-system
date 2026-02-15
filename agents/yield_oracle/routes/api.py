@@ -138,3 +138,13 @@ async def trigger_scrape(
     import asyncio
     asyncio.create_task(scrape_and_save())
     return {"status": "scrape_started"}
+
+
+@router.post("/score", status_code=202)
+async def trigger_score(
+    _key: bool = Depends(verify_api_key),
+):
+    """Manually trigger risk scoring for all opportunities."""
+    from agents.yield_oracle.services.scorer import score_all_opportunities
+    await score_all_opportunities()
+    return {"status": "scoring_complete"}
